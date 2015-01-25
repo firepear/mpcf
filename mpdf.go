@@ -9,6 +9,7 @@ import(
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -33,7 +34,7 @@ func main() {
 		os.Exit(0)
 	}
 	if *tagp {
-		tagdir(flag.Args())
+		tagdir(flag.Args(), db)
 		os.Exit(0)
 	}
 	
@@ -49,13 +50,49 @@ func main() {
 		scandir("", db)
 	} else {
 		var tags, facets int
-		db.QueryRow("select count(tid) from t2f").Scan(tags)
-		db.QueryRow("select count(id) from facets").Scan(facets)
+		db.QueryRow("select count(tid) from t2f").Scan(&tags)
+		db.QueryRow("select count(id) from facets").Scan(&facets)
 		fmt.Printf("%v tracks; %v tagged, with %v facets\n", tracks, tags, facets)
 	}
 }
 
-func tagdir([]string) {
+func tagdir(args []string, db *sql.DB) {
+	if len(args) != 2 {
+		log.Fatal("Not enough arguments to -tag; need a directory and a tag")
+	}
+	// create the tag if it doesn't exist
+	var fid int
+	db.QueryRow("select id from facets where facet = ?", args[1]).Scan(&fid)
+	if fid == 0 {
+		db.Exec("insert into facets (facet) values (?)", args[1])
+		db.QueryRow("select id from facets where facet = ?", args[1]).Scan(&fid)
+	}
+	// now actually tag tracks under this dir
+	args[0] = strings.TrimRight(args[0], "/")
+	args[0] = strings.TrimLeft(args[0], ".")
+	tagdir2(args[0], fid, db)
+}
+
+func tagdir2(dir string, fid int, db *sql.DB) {
+	err := os.Chdir(musicdir + dir)
+	if err != nil {
+		log.Fatalf("Can't chdir to %v", dir)
+	}
+	ls, err := ioutil.ReadDir(".")
+	for _, direntry := range ls {
+		name := dir + "/" + direntry.Name()
+		if direntry.IsDir() {
+			tagdir2(name, fid, db)
+		} else {
+			var tid, fcnt int
+			db.QueryRow("select id from tracks where filename = ?", name).Scan(&tid)
+			db.QueryRow("select count(tid) from t2f where tid = ? and fid = ?", tid, fid).Scan(&fcnt)
+			if fcnt > 0 {
+				continue
+			}
+			db.Exec("insert into t2f (tid, fid) values (?, ?)", tid, fid)
+		}
+	}
 }
 
 func createdb(db *sql.DB) {
