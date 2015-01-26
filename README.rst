@@ -5,7 +5,15 @@ Faceted classification for mpc/mpd
 ==================================
 
 If you use mpd/mpc to listen to your music, mpcf will let you add
-facets (cross-cutting classifications) to your music collection.
+facets (cross-cutting classifications) to your music collection. For
+instance, I have facets for locations (Atlanta bands, etc.), for music
+origin (things I ripped from vinyl), and so on (bands I've seen
+live). Views like this do not fit into existing ID3 implementations.
+
+Tracks can, of course, be tagged with arbitrary numbers of facets.
+
+It is assumed that your music is organized by directory in some useful
+manner; tagging tracks operates on whole directory subtrees.
 
 ::
    
@@ -25,7 +33,7 @@ from the db is not implemented).
 
 * Current version: 0.3.0 (2015-01-25)
 
-* `Issue tracker <https://firepear.atlassian.net/browse/MCPF>`_
+* `Issue tracker <https://firepear.atlassian.net/browse/MPCF>`_
 
 * Source repo: :code:`git://firepear.net/goutils/mcpf.git`
 
