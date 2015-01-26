@@ -19,25 +19,44 @@ var(
 	scanp = flag.Bool("scan", false, "Perform scan of musicdir")
 	tagp = flag.Bool("tag", false, "Tag [dir] with [facet]")
 	getp = flag.Bool("get", false, "Get filenames for tracks tagged with [facet]")
-	musicdir = "/home/mdxi/media/music"
+	mdflag = flag.String("musicdir", "", "Set location of your mpd music directory")
+	musicdir = ""
 	seen = 0
 )
+
+func init() {
+	flag.Parse()
+	config := os.Getenv("HOME") + "/.mpcf"
+	if *mdflag != "" {
+		err := ioutil.WriteFile(config, []byte(*mdflag), 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		musicdir = *mdflag
+	} else {
+		mdbytes, err := ioutil.ReadFile(config)
+		if err != nil {
+			log.Fatal(err)
+		}
+		musicdir = string(mdbytes)
+	}
+}
 
 func main() {
 	db, err := sql.Open("sqlite3", musicdir + "/.mpcf.db")
 	if err != nil {
 		log.Fatal(err)
 	}
-	flag.Parse()
 	defer db.Close()
 
 	if *verp {
-		fmt.Println("This is mpcf v0.3.0")
+		fmt.Println("This is mpcf v0.4.0")
 		os.Exit(0)
 	}
 	if *scanp {
 		db.Exec("PRAGMA synchronous=0")
 		scandir("", db)		
+		cleandb(db)
 		os.Exit(0)
 	}
 	if *tagp {
@@ -159,8 +178,10 @@ func createdb(db *sql.DB) {
 	var stmts = []string{
 		"create table tracks (id integer primary key, filename text unique, hash text unique)",
 		"create table facets (id integer primary key, facet text)",
-		"create table t2f(tid integer, fid integer)",
+		"create table t2f (tid integer, fid integer)",
 		"create index fididx on t2f(fid)",
+		"create table config (key text, value text)",
+		"insert into config (key, value) values('mpdconf', '/etc/mpd.conf')",
 	}
 	for _, stmt := range stmts {
 		if err != nil {
@@ -201,6 +222,25 @@ func scandir(dir string, db *sql.DB) {
 	}
 }
 
+func cleandb(db *sql.DB) {
+	rows, err := db.Query("SELECT id, filename FROM tracks")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+	var id int64
+	var name string
+	for rows.Next() {
+		if err := rows.Scan(&id, &name); err != nil {	
+			log.Fatal(err)
+		}
+		os.Stat(musicdir + "/" + name)
+	}
+	if err := rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+}
+		
 func calcMD5(filename string) []byte {
 	file, err := os.Open(filename)
 	if err != nil {

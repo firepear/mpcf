@@ -28,8 +28,13 @@ manner; tagging tracks operates on whole directory subtrees.
     # scan musicdir for new/modified files
     $ mpcf -scan
 
-It's not quite initial feature-complete yet (cleaning outdated entries
-from the db is not implemented).
+Applying tags is idempotent, so don't worry about whether something
+has or has not already been tagged.
+
+If a file's location changes _or_ if the file itself changes but is in
+the same location, then tags will stick with the file. If a file moves
+*and* changes, however, it will be seen as new (have no tags
+associated with it), requiring a sync.
 
 * Current version: 0.3.0 (2015-01-25)
 
