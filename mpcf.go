@@ -15,6 +15,7 @@ import(
 
 var(
 	verp = flag.Bool("version", false, "Show version info")
+	facetp = flag.Bool("facets", false, "List facets")
 	scanp = flag.Bool("scan", false, "Perform scan of musicdir")
 	tagp = flag.Bool("tag", false, "Tag [dir] with [facet]")
 	getp = flag.Bool("get", false, "Get filenames for tracks tagged with [facet]")
@@ -43,6 +44,10 @@ func main() {
 		getfacettracks(flag.Args(), db)
 		os.Exit(0)
 	}
+	if *facetp {
+		lsfacets(db)
+		os.Exit(0)
+	}
 	if *verp {
 		fmt.Println("This is mpcf v0.1.0")
 		os.Exit(0)
@@ -65,6 +70,24 @@ func main() {
 		fmt.Printf("%v tracks; %v tagged, with %v facets\n", tracks, tags, facets)
 	}
 }
+
+func lsfacets(db *sql.DB) {
+	rows, err := db.Query("SELECT facet FROM facets ORDER BY facet")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+	var f string
+	for rows.Next() {
+		if err := rows.Scan(&f); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(f)
+	}
+	if err := rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+}	
 
 func getfacettracks(args []string, db *sql.DB) {
 	if len(args) != 1 {
@@ -105,12 +128,12 @@ func tagdir(args []string, db *sql.DB) {
 	}
 	// now actually tag tracks under this dir
 	args[0] = strings.TrimRight(args[0], "/")
-	args[0] = strings.TrimLeft(args[0], ".")
+	args[0] = strings.TrimLeft(args[0], "./")
 	tagdir2(args[0], fid, db)
 }
 
 func tagdir2(dir string, fid int, db *sql.DB) {
-	err := os.Chdir(musicdir + dir)
+	err := os.Chdir(musicdir + "/" + dir)
 	if err != nil {
 		log.Fatalf("Can't chdir to %v", dir)
 	}
@@ -158,7 +181,11 @@ func scandir(dir string, db *sql.DB) {
 	}
 	for _, direntry := range ls {
 		if direntry.IsDir() {
-			scandir(dir + "/" + direntry.Name(), db)
+			if dir == "" {
+				scandir(direntry.Name(), db)
+			} else {
+				scandir(dir + "/" + direntry.Name(), db)
+			}
 		} else {
 			seen ++
 			if seen % 100 == 0 {
