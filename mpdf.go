@@ -14,8 +14,10 @@ import(
 )
 
 var(
+	verp = flag.Bool("version", false, "Show version info")
 	scanp = flag.Bool("scan", false, "Perform scan of musicdir")
 	tagp = flag.Bool("tag", false, "Tag [dir] with [facet]")
+	getp = flag.Bool("get", false, "Get filenames for tracks tagged with [facet]")
 	musicdir = "/home/mdxi/media/music"
 	seen = 0
 )
@@ -37,6 +39,14 @@ func main() {
 		tagdir(flag.Args(), db)
 		os.Exit(0)
 	}
+	if *getp {
+		getfacettracks(flag.Args(), db)
+		os.Exit(0)
+	}
+	if *verp {
+		fmt.Println("This is mpcf v0.1.0")
+		os.Exit(0)
+	}
 	
 	// create db if needed
 	var tracks int
@@ -56,9 +66,35 @@ func main() {
 	}
 }
 
+func getfacettracks(args []string, db *sql.DB) {
+	if len(args) != 1 {
+		log.Fatal("Too many/few arguments to -get; need a facet name")
+	}
+	var fid int
+	db.QueryRow("select id from facets where facet = ?", args[0]).Scan(&fid)
+	if fid == 0 {
+		return
+	}
+	rows, err := db.Query("SELECT filename FROM tracks WHERE id IN (SELECT DISTINCT tid FROM t2f WHERE fid = ?)", fid)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+	var name string
+	for rows.Next() {
+		if err := rows.Scan(&name); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(name)
+	}
+	if err := rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func tagdir(args []string, db *sql.DB) {
 	if len(args) != 2 {
-		log.Fatal("Not enough arguments to -tag; need a directory and a tag")
+		log.Fatal("Too many/few arguments to -tag; need a directory and a facet")
 	}
 	// create the tag if it doesn't exist
 	var fid int
