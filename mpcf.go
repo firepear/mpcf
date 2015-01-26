@@ -1,11 +1,11 @@
 package main
 
 import(
-	//"crypto/md5"
+	"crypto/md5"
 	"database/sql"
 	"flag"
 	"fmt"
-	//"io"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -24,13 +24,17 @@ var(
 )
 
 func main() {
-	db, err := sql.Open("sqlite3", musicdir + "/.mpdf.db")
+	db, err := sql.Open("sqlite3", musicdir + "/.mpcf.db")
 	if err != nil {
 		log.Fatal(err)
 	}
 	flag.Parse()
 	defer db.Close()
 
+	if *verp {
+		fmt.Println("This is mpcf v0.3.0")
+		os.Exit(0)
+	}
 	if *scanp {
 		db.Exec("PRAGMA synchronous=0")
 		scandir("", db)		
@@ -46,10 +50,6 @@ func main() {
 	}
 	if *facetp {
 		lsfacets(db)
-		os.Exit(0)
-	}
-	if *verp {
-		fmt.Println("This is mpcf v0.1.0")
 		os.Exit(0)
 	}
 	
@@ -157,7 +157,7 @@ func tagdir2(dir string, fid int, db *sql.DB) {
 func createdb(db *sql.DB) {
 	var err error
 	var stmts = []string{
-		"create table tracks (id integer primary key, filename text unique)",
+		"create table tracks (id integer primary key, filename text unique, hash text unique)",
 		"create table facets (id integer primary key, facet text)",
 		"create table t2f(tid integer, fid integer)",
 		"create index fididx on t2f(fid)",
@@ -192,20 +192,8 @@ func scandir(dir string, db *sql.DB) {
 				log.Printf("Processed %v tracks\n", seen)
 			}
 			name := dir + "/" + direntry.Name()
-			// if we already have a file with this name, don't do anything else
-			var id int
-			res := db.QueryRow("select count(id) from tracks where filename = ?", name)
-			err = res.Scan(&id)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if id > 0 {
-				continue
-			}
-			// nope, this one needs processing
-			//md5 := fmt.Sprintf("%x", calcMD5(direntry.Name()))
-			//_, err := db.Exec("INSERT OR REPLACE INTO tracks (filename, hash) VALUES(COALESCE((SELECT filename FROM tracks WHERE filename = ?),?), COALESCE((SELECT hash FROM tracks WHERE hash = ?), ?))", name, name, md5, md5)
-			_, err := db.Exec("INSERT INTO tracks (filename) VALUES(?)", name)
+			md5 := fmt.Sprintf("%x", calcMD5(direntry.Name()))
+			_, err := db.Exec("INSERT OR REPLACE INTO tracks (filename, hash) VALUES(COALESCE((SELECT filename FROM tracks WHERE filename = ?),?), COALESCE((SELECT hash FROM tracks WHERE hash = ?), ?))", name, name, md5, md5)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -213,7 +201,7 @@ func scandir(dir string, db *sql.DB) {
 	}
 }
 
-/*func calcMD5(filename string) []byte {
+func calcMD5(filename string) []byte {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(err)
@@ -221,9 +209,8 @@ func scandir(dir string, db *sql.DB) {
 	defer file.Close()
 
 	hash := md5.New()
-	if _, err := io.Copy(hash, file); err != nil {
+	if _, err := io.CopyN(hash, file, 262144); err != nil && err != io.EOF {
 		log.Fatal(err)
 	}
 	return hash.Sum(nil)
 }
-*/
