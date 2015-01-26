@@ -13,12 +13,15 @@ facets (cross-cutting classifications) to your music collection.
     $ mpcf
     # tag files in subtree DIRECTORY with FACET
     $ mpcf -tag [DIRECTORY] [FACET]
+    # show extant facets
+    $ mpcf -facets
     # add all files with FACET to playlist
     $ mpcf -get [FACET] | mpc add
     # scan musicdir for new/modified files
     $ mpcf -scan
 
-It's not ready for use by other people yet. This is informational.
+It's not quite initial feature-complete yet (cleaning outdated entries
+from the db is not implemented).
 
 * Current version: 0.3.0 (2015-01-25)
 
