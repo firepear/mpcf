@@ -20,8 +20,7 @@ operates on directory subtrees.
     # first run; set music directory and initialize db
     $ mpcf -musicdir=/path/to/mpd/musicdir
     
-    # tag all files in subtree DIRECTORY with FACET (DIRECTORY should
-    # be relative to musicdir)
+    # tag all files in subtree DIRECTORY with FACET
     $ mpcf -tag [DIRECTORY] [FACET]
     
     # add all files with FACET to playlist
