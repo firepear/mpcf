@@ -16,7 +16,8 @@ import(
 var(
 	verp = flag.Bool("version", false, "Show version info")
 	facetp = flag.Bool("facets", false, "List facets")
-	scanp = flag.Bool("scan", false, "Perform scan of musicdir")
+	scanp = flag.Bool("scan", false, "Check for new/modified files and sweep db for orphan records")
+	cleanp = flag.Bool("cleandb", false, "Just clean db (no file scan)")
 	tagp = flag.Bool("tag", false, "Tag [dir] with [facet]")
 	getp = flag.Bool("get", false, "Get filenames for tracks tagged with [facet]")
 	mdflag = flag.String("musicdir", "", "Set location of your mpd music directory")
@@ -50,12 +51,16 @@ func main() {
 	defer db.Close()
 
 	if *verp {
-		fmt.Println("This is mpcf v0.4.0")
+		fmt.Println("This is mpcf v0.5.1")
 		os.Exit(0)
 	}
 	if *scanp {
 		db.Exec("PRAGMA synchronous=0")
 		scandir("", db)		
+		cleandb(db)
+		os.Exit(0)
+	}
+	if *cleanp {
 		cleandb(db)
 		os.Exit(0)
 	}
@@ -148,6 +153,7 @@ func tagdir(args []string, db *sql.DB) {
 	// now actually tag tracks under this dir
 	args[0] = strings.TrimRight(args[0], "/")
 	args[0] = strings.TrimLeft(args[0], "./")
+	args[0] = strings.TrimLeft(args[0], musicdir)
 	tagdir2(args[0], fid, db)
 }
 
@@ -214,7 +220,12 @@ func scandir(dir string, db *sql.DB) {
 			}
 			name := dir + "/" + direntry.Name()
 			md5 := fmt.Sprintf("%x", calcMD5(direntry.Name()))
-			_, err := db.Exec("INSERT OR REPLACE INTO tracks (filename, hash) VALUES(COALESCE((SELECT filename FROM tracks WHERE filename = ?),?), COALESCE((SELECT hash FROM tracks WHERE hash = ?), ?))", name, name, md5, md5)
+			// _, err := db.Exec("INSERT OR REPLACE INTO tracks (filename, hash) VALUES(COALESCE((SELECT filename FROM tracks WHERE filename = ?),?), COALESCE((SELECT hash FROM tracks WHERE hash = ?), ?))", name, name, md5, md5)
+			_, err := db.Exec("INSERT OR IGNORE INTO tracks (filename, hash) VALUES(?, ?)", name, md5)
+			if err != nil {
+				log.Fatal(err)
+			}
+			_, err = db.Exec("UPDATE tracks SET filename = ?, hash = ? WHERE filename = ?", name, md5, name)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -223,6 +234,7 @@ func scandir(dir string, db *sql.DB) {
 }
 
 func cleandb(db *sql.DB) {
+	log.Printf("Scanning db for orphaned records")
 	rows, err := db.Query("SELECT id, filename FROM tracks")
 	if err != nil {
 		log.Fatal(err)
@@ -234,11 +246,25 @@ func cleandb(db *sql.DB) {
 		if err := rows.Scan(&id, &name); err != nil {	
 			log.Fatal(err)
 		}
-		os.Stat(musicdir + "/" + name)
+		_, err = os.Stat(musicdir + "/" + name)
+		if err == nil {
+			continue
+		}
+		// remove track entry
+		_, err = db.Exec("delete from tracks where id = ?", id)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// remove tag links
+		_, err = db.Exec("delete from t2f where tid = ?", id)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
 	}
+	_, err = db.Exec("vacuum")
 }
 		
 func calcMD5(filename string) []byte {
