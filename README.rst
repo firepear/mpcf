@@ -35,9 +35,9 @@ Applying tags is idempotent, so don't worry about whether something
 has or has not already been tagged.
 
 If a file's location changes *or* if the file itself changes but is in
-the same location, then tags will stick with the file when :code:`'mcpf -scan'` is
-run. However, if a file moves *and* changes, it will be seen as new
-and no longer have tags associated with it.
+the same location, then tags will stick with the file when
+:code:`'mcpf -scan'` is run. However, if a file moves *and* changes,
+it will be seen as new and no longer have tags associated with it.
 
 mpcf's database is stored at :code:`MUSICDIR/.mpcf.db`, so if you
 backup your music directory, the db should be backed up as well.
@@ -45,11 +45,8 @@ backup your music directory, the db should be backed up as well.
 There are plans to add (slightly) richer functionality and more
 polish, but the db format is likely stable.
 
-* Current version: 0.5.1 (2015-01-27)
+* Current version: 0.5.2 (2015-03-06)
 
-* `Issue tracker <https://firepear.atlassian.net/browse/MPCF>`_
+* Install: :code:`go get firepear.net/qsplit`
 
-* Source repo: :code:`git://firepear.net/goutils/mcpf.git`
-
-
-Send questions, suggestions, or problem reports to shawn@firepear.net
+* `Github <http://github.com/firepear/qsplit/>`_

@@ -37,7 +37,7 @@ func init() {
 	} else {
 		mdbytes, err := ioutil.ReadFile(config)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Please run 'mpcf -musicdir /path/to/music' to set your musicdir path.")
 		}
 		musicdir = string(mdbytes)
 	}
@@ -51,7 +51,7 @@ func main() {
 	defer db.Close()
 
 	if *verp {
-		fmt.Println("This is mpcf v0.5.1")
+		fmt.Println("This is mpcf v0.5.2")
 		os.Exit(0)
 	}
 	if *scanp {
