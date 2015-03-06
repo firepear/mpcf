@@ -47,6 +47,6 @@ polish, but the db format is likely stable.
 
 * Current version: 0.5.2 (2015-03-06)
 
-* Install: :code:`go get firepear.net/qsplit`
+* Install: :code:`go get firepear.net/mpcf`
 
-* `Github <http://github.com/firepear/qsplit/>`_
+* `Github <https://github.com/firepear/mpcf/>`_
