@@ -4,6 +4,8 @@ mpcf
 Faceted classification for mpc/mpd
 ==================================
 
+*mpcf is unmaintained software*
+
 If you use mpd/mpc to listen to your music, mpcf will let you add
 facets — cross-cutting classifications — to your music collection. For
 instance, I have facets for locations (Atlanta bands), for music
@@ -45,7 +47,7 @@ backup your music directory, the db should be backed up as well.
 There are plans to add (slightly) richer functionality and more
 polish, but the db format is likely stable.
 
-* Current version: 0.5.2 (2015-03-06)
+* Current version: 0.5.3 (2015-04-28)
 
 * Install: :code:`go get firepear.net/mpcf`
 

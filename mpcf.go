@@ -93,7 +93,7 @@ func main() {
 	db.QueryRow("select count(tid) from t2f").Scan(&tags)
 	db.QueryRow("select count(distinct tid) from t2f").Scan(&taggedtracks)
 	db.QueryRow("select count(id) from facets").Scan(&facets)
-	fmt.Printf("%v tracks (%v tagged); %v tags across %v facets\n", tracks, taggedtracks, tags, facets)
+	fmt.Printf("%v tracks (%v tagged)\n%v tags\n%v facets\n", tracks, taggedtracks, tags, facets)
 }
 
 func lsfacets(db *sql.DB) {
