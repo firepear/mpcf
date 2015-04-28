@@ -22,7 +22,8 @@ var(
 	getp = flag.Bool("get", false, "Get filenames for tracks tagged with [facet]")
 	mdflag = flag.String("musicdir", "", "Set location of your mpd music directory")
 	musicdir = ""
-	seen = 0
+	seen      int64
+	touched   int64
 )
 
 func init() {
@@ -49,14 +50,25 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
+	// create db if needed
+	var tracks int
+	res := db.QueryRow("select count(id) from tracks")
+	err = res.Scan(&tracks)
+	if err != nil {
+		db.Exec("PRAGMA synchronous=0")
+		log.Println("Creating db")
+		createdb(db)
+		log.Println("Updating track list")
+		scandir("", db)
+	}
 
 	if *verp {
-		fmt.Println("This is mpcf v0.5.2")
+		fmt.Println("This is mpcf v0.5.3")
 		os.Exit(0)
 	}
 	if *scanp {
 		db.Exec("PRAGMA synchronous=0")
-		scandir("", db)		
+		scandir("", db)
 		cleandb(db)
 		os.Exit(0)
 	}
@@ -76,23 +88,11 @@ func main() {
 		lsfacets(db)
 		os.Exit(0)
 	}
-	
-	// create db if needed
-	var tracks int
-	res := db.QueryRow("select count(id) from tracks")
-	err = res.Scan(&tracks)
-	if err != nil {
-		log.Println("Creating db")
-		createdb(db)
-		log.Println("Updating track list")
-		db.Exec("PRAGMA synchronous=0")
-		scandir("", db)
-	} else {
-		var tags, facets int
-		db.QueryRow("select count(tid) from t2f").Scan(&tags)
-		db.QueryRow("select count(id) from facets").Scan(&facets)
-		fmt.Printf("%v tracks; %v tagged, with %v facets\n", tracks, tags, facets)
-	}
+
+	var tags, facets int
+	db.QueryRow("select count(tid) from t2f").Scan(&tags)
+	db.QueryRow("select count(id) from facets").Scan(&facets)
+	fmt.Printf("%v tracks; %v tagged, with %v facets\n", tracks, tags, facets)
 }
 
 func lsfacets(db *sql.DB) {
@@ -111,7 +111,7 @@ func lsfacets(db *sql.DB) {
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
 	}
-}	
+}
 
 func getfacettracks(args []string, db *sql.DB) {
 	if len(args) != 1 {
@@ -216,19 +216,21 @@ func scandir(dir string, db *sql.DB) {
 		} else {
 			seen ++
 			if seen % 100 == 0 {
-				log.Printf("Processed %v tracks\n", seen)
+				log.Printf("Processed %v tracks; updated %v\n", seen, touched)
 			}
 			name := dir + "/" + direntry.Name()
 			md5 := fmt.Sprintf("%x", calcMD5(direntry.Name()))
 			// _, err := db.Exec("INSERT OR REPLACE INTO tracks (filename, hash) VALUES(COALESCE((SELECT filename FROM tracks WHERE filename = ?),?), COALESCE((SELECT hash FROM tracks WHERE hash = ?), ?))", name, name, md5, md5)
-			_, err := db.Exec("INSERT OR IGNORE INTO tracks (filename, hash) VALUES(?, ?)", name, md5)
+			r, err := db.Exec("INSERT OR IGNORE INTO tracks (filename, hash) VALUES(?, ?)", name, md5)
 			if err != nil {
 				log.Fatal(err)
 			}
-			_, err = db.Exec("UPDATE tracks SET filename = ?, hash = ? WHERE filename = ?", name, md5, name)
-			if err != nil {
-				log.Fatal(err)
-			}
+			touch, _ := r.RowsAffected()
+			touched += touch
+			//r, err = db.Exec("UPDATE tracks SET filename = ?, hash = ? WHERE filename = ?", name, md5, name)
+			//if err != nil {
+			//	log.Fatal(err)
+			//}
 		}
 	}
 }
@@ -243,7 +245,7 @@ func cleandb(db *sql.DB) {
 	var id int64
 	var name string
 	for rows.Next() {
-		if err := rows.Scan(&id, &name); err != nil {	
+		if err := rows.Scan(&id, &name); err != nil {
 			log.Fatal(err)
 		}
 		_, err = os.Stat(musicdir + "/" + name)
@@ -260,13 +262,14 @@ func cleandb(db *sql.DB) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Printf("Removed orphan record for %v\n", name)
 	}
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
 	}
 	_, err = db.Exec("vacuum")
 }
-		
+
 func calcMD5(filename string) []byte {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -275,7 +278,7 @@ func calcMD5(filename string) []byte {
 	defer file.Close()
 
 	hash := md5.New()
-	if _, err := io.CopyN(hash, file, 262144); err != nil && err != io.EOF {
+	if _, err := io.CopyN(hash, file, 524288); err != nil && err != io.EOF {
 		log.Fatal(err)
 	}
 	return hash.Sum(nil)
