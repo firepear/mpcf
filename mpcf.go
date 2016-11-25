@@ -1,29 +1,29 @@
 package main
 
-import(
+import (
 	"crypto/md5"
 	"database/sql"
 	"flag"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
-	_ "github.com/mattn/go-sqlite3"
 )
 
-var(
-	verp = flag.Bool("version", false, "Show version info")
-	facetp = flag.Bool("facets", false, "List facets")
-	scanp = flag.Bool("scan", false, "Check for new/modified files and sweep db for orphan records")
-	cleanp = flag.Bool("cleandb", false, "Just clean db (no file scan)")
-	tagp = flag.Bool("tag", false, "Tag [dir] with [facet]")
-	getp = flag.Bool("get", false, "Get filenames for tracks tagged with [facet]")
-	mdflag = flag.String("musicdir", "", "Set location of your mpd music directory")
+var (
+	verp     = flag.Bool("version", false, "Show version info")
+	facetp   = flag.Bool("facets", false, "List facets")
+	scanp    = flag.Bool("scan", false, "Check for new/modified files and sweep db for orphan records")
+	cleanp   = flag.Bool("cleandb", false, "Just clean db (no file scan)")
+	tagp     = flag.Bool("tag", false, "Tag [dir] with [facet]")
+	getp     = flag.Bool("get", false, "Get filenames for tracks tagged with [facet]")
+	mdflag   = flag.String("musicdir", "", "Set location of your mpd music directory")
 	musicdir = ""
-	seen      int64
-	touched   int64
+	seen     int64
+	touched  int64
 )
 
 func init() {
@@ -45,7 +45,7 @@ func init() {
 }
 
 func main() {
-	db, err := sql.Open("sqlite3", musicdir + "/.mpcf.db")
+	db, err := sql.Open("sqlite3", musicdir+"/.mpcf.db")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -212,11 +212,11 @@ func scandir(dir string, db *sql.DB) {
 			if dir == "" {
 				scandir(direntry.Name(), db)
 			} else {
-				scandir(dir + "/" + direntry.Name(), db)
+				scandir(dir+"/"+direntry.Name(), db)
 			}
 		} else {
-			seen ++
-			if seen % 100 == 0 {
+			seen++
+			if seen%100 == 0 {
 				log.Printf("Processed %v tracks; updated %v\n", seen, touched)
 			}
 			name := dir + "/" + direntry.Name()
